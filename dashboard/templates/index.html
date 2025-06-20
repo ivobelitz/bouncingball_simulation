@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bouncing Ball Simulation Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container-fluid {
+            max-width: 1200px;
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .plot-container {
+            min-height: 500px;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .placeholder-text {
+            color: #6c757d;
+            font-size: 1.2rem;
+        }
+        .spinner-border {
+            width: 2rem;
+            height: 2rem;
+        }
+        .alert {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <h1 class="text-center mb-4">🏀 Bouncing Ball Simulation Dashboard</h1>
+        
+        <div class="row">
+            <!-- Control Panel -->
+            <div class="col-lg-4 mb-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Simulation Parameters</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="simulationForm">
+                            <div class="mb-3">
+                                <label for="planetSelect" class="form-label">Select Planet:</label>
+                                <select class="form-select" id="planetSelect" required>
+                                    {% for planet in planets %}
+                                    <option value="{{ planet }}" {% if planet == 'Earth' %}selected{% endif %}>{{ planet }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="heightInput" class="form-label">Drop Height (m):</label>
+                                <input type="number" class="form-control" id="heightInput" 
+                                       value="10.0" min="0.1" max="1000" step="0.1" required>
+                                <div class="form-text">Enter height between 0.1 and 1000 meters</div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success w-100" id="simulateBtn">
+                                <span id="btnText">🚀 Run Simulation</span>
+                                <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </span>
+                            </button>
+                        </form>
+                        
+                        <!-- Alert messages -->
+                        <div id="alertContainer"></div>
+                        
+                        <!-- Planet info -->
+                        <div class="mt-4">
+                            <h6>Planet Information:</h6>
+                            <div id="planetInfo" class="text-muted">
+                                Select a planet to see gravity information
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Instructions -->
+                <div class="card mt-4">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">How to Use</h6>
+                    </div>
+                    <div class="card-body">
+                        <ol class="mb-0">
+                            <li>Choose a planet from the dropdown</li>
+                            <li>Set the drop height in meters</li>
+                            <li>Click "Run Simulation"</li>
+                            <li>View the ball trajectory plot</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Plot Area -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Ball Trajectory</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="plotDiv" class="plot-container">
+                            <div class="placeholder-text">
+                                Run a simulation to see the ball trajectory
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Planet gravity values for display
+        const planetGravities = {
+            "Earth": 9.81,
+            "Moon": 1.62,
+            "Mars": 3.71,
+            "Jupiter": 24.79,
+            "Venus": 8.87,
+            "Mercury": 3.7,
+            "Saturn": 10.44,
+            "Uranus": 8.69,
+            "Neptune": 11.15
+        };
+
+        // Update planet info when selection changes
+        document.getElementById('planetSelect').addEventListener('change', function() {
+            const planet = this.value;
+            const gravity = planetGravities[planet];
+            document.getElementById('planetInfo').innerHTML = 
+                `<strong>${planet}</strong><br>Gravity: ${gravity} m/s²`;
+        });
+
+        // Initialize planet info
+        document.getElementById('planetSelect').dispatchEvent(new Event('change'));
+
+        // Handle form submission
+        document.getElementById('simulationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            runSimulation();
+        });
+
+        function runSimulation() {
+            const planet = document.getElementById('planetSelect').value;
+            const height = parseFloat(document.getElementById('heightInput').value);
+            
+            // Validate input
+            if (isNaN(height) || height <= 0) {
+                showAlert('Please enter a valid height greater than 0', 'danger');
+                return;
+            }
+            
+            // Update UI for loading state
+            const btn = document.getElementById('simulateBtn');
+            const btnText = document.getElementById('btnText');
+            const btnSpinner = document.getElementById('btnSpinner');
+            
+            btn.disabled = true;
+            btnText.classList.add('d-none');
+            btnSpinner.classList.remove('d-none');
+            
+            clearAlert();
+            
+            // Make API request
+            fetch('/api/simulate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    planet: planet,
+                    height: height
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Plot the graph
+                    const graphData = JSON.parse(data.graph);
+                    Plotly.newPlot('plotDiv', graphData.data, graphData.layout, {responsive: true});
+                    showAlert(data.message, 'success');
+                } else {
+                    showAlert(data.error || 'Simulation failed', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Failed to connect to simulation server', 'danger');
+            })
+            .finally(() => {
+                // Reset button state
+                btn.disabled = false;
+                btnText.classList.remove('d-none');
+                btnSpinner.classList.add('d-none');
+            });
+        }
+
+        function showAlert(message, type) {
+            clearAlert();
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            alertContainer.appendChild(alertDiv);
+        }
+
+        function clearAlert() {
+            document.getElementById('alertContainer').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

@@ -41,7 +41,7 @@ The Docker Compose configuration includes:
 - **Dashboard Service**: Runs on port 5000 (accessible from host browser)
 - **Shared Network**: Both services communicate via the `bouncingball_network`
 - **Volume Mounting**: Simulator output is saved to `./simulator/output/`
-- 
+  
 ## Troubleshooting
 
 - **Services won't start**: Ensure Docker and Docker Compose are installed and running

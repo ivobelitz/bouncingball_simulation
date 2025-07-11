@@ -9,6 +9,24 @@ import json
 import os
 
 
+def load_config():
+    """Load configuration from config.json file"""
+    config_path = os.path.join(os.path.dirname(__file__), 'dashboard.json')
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        return config
+    except FileNotFoundError:
+        print(f"Warning: Configuration not found at {config_path}. Using default settings.")
+        return {}
+    except json.JSONDecodeError as e:
+        print(f"Warning: Error parsing configuration {e}. Using default settings.")
+        return {}
+
+# Load configuration
+config = load_config()
+
+
 app = Flask(__name__)
 CORS(app)
 
@@ -34,8 +52,8 @@ def index():
     """Render the main dashboard page"""
     return render_template('index.html', planets=list(PLANETS.keys()))
 
-
-@app.route('/api/simulate', methods=['POST'])
+user_input_endpoint = config['user_input']['endpoint']
+@app.route(user_input_endpoint, methods=['POST'])
 def simulate():
     """Run simulation and return plot data"""
     try:
@@ -51,8 +69,13 @@ def simulate():
             "planet": planet,
             "height": height
         }
-        
-        response = requests.post(f"{API_URL}/simulate", json=payload, timeout=30)
+
+        address = config['simulation_request']['address']
+        port = config['simulation_request']['port']
+        endpoint = config['simulation_request']['endpoint']
+        print("URL: ", f"{address}:{port}{endpoint}")
+            
+        response = requests.post(f"{address}:{port}{endpoint}", json=payload, timeout=30)
         response.raise_for_status()
         
         # Parse CSV data
@@ -130,4 +153,4 @@ def get_planets():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5050)

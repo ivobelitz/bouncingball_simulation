@@ -9,6 +9,24 @@ from flask_cors import CORS
 import io
 import tempfile
 import logging
+import json
+
+def load_config():
+    """Load configuration from config.json file"""
+    config_path = os.path.join(os.path.dirname(__file__), 'simulation_model.json')
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        return config
+    except FileNotFoundError:
+        print(f"Warning: Configuration not found at {config_path}. Using default settings.")
+        return {}
+    except json.JSONDecodeError as e:
+        print(f"Warning: Error parsing configuration {e}. Using default settings.")
+        return {}
+
+# Load configuration
+config = load_config()
 
 app = Flask(__name__)
 CORS(app)
@@ -35,7 +53,8 @@ def get_planets():
     """Get available planets and their gravity values"""
     return jsonify(PLANETS)
 
-@app.route('/simulate', methods=['POST'])
+endpoint = config['simulation_response']['endpoint']
+@app.route(endpoint, methods=['POST'])
 def simulate_endpoint():
     """Run simulation via HTTP request"""
     try:
